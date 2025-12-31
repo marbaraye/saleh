@@ -71,7 +71,7 @@ router.put('/profile', authenticate, [
     .isLength({ min: 3, max: 50 })
     .matches(/^[a-zA-Z0-9_-]+$/),
   body('bio').optional().isLength({ max: 500 }),
-  body('avatarUrl').optional().isURL().or(body('avatarUrl').isEmpty())
+  body('avatarUrl').optional({ checkFalsy: true }).isURL()
 ], asyncHandler(async (req, res) => {
   const validationErrors = validationResult(req);
   if (!validationErrors.isEmpty()) {
