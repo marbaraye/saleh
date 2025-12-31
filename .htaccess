@@ -1,0 +1,100 @@
+# Configuration Apache pour AlwaysData
+# C Mastery - Application d'apprentissage du C avancé
+
+# Activer le moteur de réécriture
+RewriteEngine On
+
+# Définir la base de réécriture
+RewriteBase /
+
+# Proxy vers l'application Node.js (port 3000)
+# AlwaysData route automatiquement vers le port configuré
+
+# Rediriger les requêtes API vers Node.js
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^(.*)$ http://localhost:3000/$1 [P,L]
+
+# Servir les fichiers statiques du build React
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /public/index.html [L]
+
+# Headers de sécurité
+<IfModule mod_headers.c>
+    # Protection XSS
+    Header always set X-XSS-Protection "1; mode=block"
+    
+    # Empêcher le sniffing MIME
+    Header always set X-Content-Type-Options "nosniff"
+    
+    # Clickjacking protection
+    Header always set X-Frame-Options "SAMEORIGIN"
+    
+    # Referrer Policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Content Security Policy
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com"
+</IfModule>
+
+# Compression GZIP
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+
+# Cache des assets statiques
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Images
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    
+    # CSS et JavaScript
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    
+    # Fonts
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    
+    # HTML - pas de cache
+    ExpiresByType text/html "access plus 0 seconds"
+</IfModule>
+
+# Protection des fichiers sensibles
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "\.(env|json|lock|md)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Autoriser l'accès aux fichiers JSON d'API
+<FilesMatch "^(?!package).*\.json$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# Types MIME
+AddType application/javascript .js
+AddType text/css .css
+AddType application/json .json
+AddType image/svg+xml .svg
+AddType font/woff2 .woff2
+AddType font/woff .woff
+
+# Encodage UTF-8
+AddDefaultCharset UTF-8
+
+# Désactiver l'affichage du contenu des répertoires
+Options -Indexes
+
+# Suivre les liens symboliques
+Options +FollowSymLinks

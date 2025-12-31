@@ -1,0 +1,33 @@
+{
+  "name": "c-mastery",
+  "version": "1.0.0",
+  "description": "Application d'apprentissage du langage C avancé avec feuille de route interactive",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "db:init": "cd server && node database/init.js",
+    "db:seed": "cd server && node database/seed.js",
+    "db:reset": "cd server && node database/init.js && node database/seed.js",
+    "deploy": "bash deploy.sh"
+  },
+  "keywords": [
+    "c-programming",
+    "learning",
+    "education",
+    "interactive",
+    "roadmap"
+  ],
+  "author": "C Mastery Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

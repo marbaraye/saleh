@@ -1,0 +1,555 @@
+{
+  "modules": [
+    {
+      "slug": "memory-mastery",
+      "title": "Maîtrise de la Mémoire",
+      "description": "Comprenez en profondeur la gestion de la mémoire en C : allocation dynamique, mmap, allocateurs personnalisés et détection des fuites mémoire.",
+      "icon": "🧠",
+      "color": "#8b5cf6",
+      "estimatedHours": 40,
+      "position": 1,
+      "topics": [
+        {
+          "slug": "memory-layout",
+          "title": "Architecture mémoire d'un processus",
+          "description": "Découvrez comment un programme C est organisé en mémoire : stack, heap, segments de données et de code.",
+          "difficulty": 2,
+          "estimatedHours": 4,
+          "pointsReward": 100,
+          "content": {
+            "objectives": [
+              "Comprendre les différents segments mémoire (text, data, bss, heap, stack)",
+              "Savoir lire et interpréter /proc/[pid]/maps",
+              "Identifier où sont stockées les différentes variables",
+              "Comprendre la croissance du stack et du heap"
+            ],
+            "theory": "## Introduction à l'architecture mémoire\n\nChaque processus en C possède son propre espace d'adressage virtuel, divisé en plusieurs segments distincts :\n\n### Le segment Text (Code)\nContient le code exécutable du programme. Ce segment est généralement en lecture seule pour éviter les modifications accidentelles ou malveillantes.\n\n### Le segment Data\nStocke les variables globales et statiques **initialisées**. Par exemple :\n```c\nint global_var = 42;  // Stocké dans .data\nstatic int static_var = 10;  // Aussi dans .data\n```\n\n### Le segment BSS\nContient les variables globales et statiques **non initialisées** ou initialisées à zéro :\n```c\nint uninitialized;  // Stocké dans .bss\nstatic int zero_init = 0;  // Aussi dans .bss\n```\n\n### Le Heap (Tas)\nZone de mémoire dynamique gérée par `malloc()`, `calloc()`, `realloc()` et `free()`. Croît vers les adresses hautes.\n\n### Le Stack (Pile)\nStocke les variables locales, les paramètres de fonction et les adresses de retour. Croît vers les adresses basses.",
+            "examples": [
+              {
+                "title": "Visualiser les segments mémoire",
+                "code": "#include <stdio.h>\n#include <stdlib.h>\n\nint global_init = 42;        // .data\nint global_uninit;            // .bss\n\nint main() {\n    int local_var = 10;       // Stack\n    static int static_var;    // .bss\n    int *heap_var = malloc(sizeof(int));  // Heap\n    \n    printf(\"Adresse code (main): %p\\n\", (void*)main);\n    printf(\"Adresse .data: %p\\n\", (void*)&global_init);\n    printf(\"Adresse .bss: %p\\n\", (void*)&global_uninit);\n    printf(\"Adresse stack: %p\\n\", (void*)&local_var);\n    printf(\"Adresse heap: %p\\n\", (void*)heap_var);\n    \n    free(heap_var);\n    return 0;\n}",
+                "explanation": "Ce programme affiche les adresses des différentes zones mémoire, permettant de visualiser leur organisation."
+              }
+            ],
+            "checkpoints": [
+              "Je peux identifier dans quel segment une variable est stockée",
+              "Je comprends la différence entre .data et .bss",
+              "Je sais lire /proc/[pid]/maps pour analyser la mémoire d'un processus",
+              "Je comprends pourquoi le stack et le heap croissent dans des directions opposées"
+            ]
+          },
+          "resources": [
+            {
+              "title": "Memory Layout of C Programs",
+              "url": "https://www.geeksforgeeks.org/memory-layout-of-c-program/",
+              "type": "article",
+              "isRequired": true
+            }
+          ]
+        },
+        {
+          "slug": "malloc-internals",
+          "title": "Fonctionnement interne de malloc",
+          "description": "Plongez dans les mécanismes internes de l'allocation dynamique : brk, sbrk, mmap et les stratégies d'allocation.",
+          "difficulty": 3,
+          "estimatedHours": 6,
+          "pointsReward": 150,
+          "content": {
+            "objectives": [
+              "Comprendre les appels système brk/sbrk et mmap",
+              "Connaître les structures de données utilisées par malloc",
+              "Comprendre la fragmentation mémoire",
+              "Savoir quand malloc utilise mmap vs brk"
+            ],
+            "theory": "## Comment fonctionne malloc ?\n\n`malloc()` est une fonction de la bibliothèque C qui gère l'allocation dynamique de mémoire. Elle utilise principalement deux mécanismes :\n\n### brk/sbrk\nCes appels système modifient la limite du segment de données (program break). `sbrk(n)` augmente le heap de n octets.\n\n```c\n#include <unistd.h>\nvoid *ptr = sbrk(1024);  // Alloue 1024 octets\n```\n\n### mmap\nPour les grandes allocations (typiquement > 128KB), malloc utilise `mmap()` qui crée une nouvelle région mémoire.\n\n### Structure d'un bloc alloué\nChaque bloc contient un en-tête avec des métadonnées :\n- Taille du bloc\n- Indicateur d'utilisation\n- Pointeurs vers les blocs adjacents (pour les listes chaînées)",
+            "examples": [
+              {
+                "title": "Utilisation de sbrk",
+                "code": "#include <stdio.h>\n#include <unistd.h>\n\nint main() {\n    void *initial_brk = sbrk(0);\n    printf(\"Break initial: %p\\n\", initial_brk);\n    \n    // Allouer 4096 octets\n    void *ptr = sbrk(4096);\n    \n    void *new_brk = sbrk(0);\n    printf(\"Nouveau break: %p\\n\", new_brk);\n    printf(\"Différence: %ld octets\\n\", (char*)new_brk - (char*)initial_brk);\n    \n    return 0;\n}",
+                "explanation": "Ce code montre comment sbrk() modifie directement le program break pour allouer de la mémoire."
+              }
+            ],
+            "checkpoints": [
+              "Je comprends la différence entre brk/sbrk et mmap",
+              "Je sais pourquoi malloc utilise des en-têtes de bloc",
+              "Je comprends le concept de fragmentation mémoire",
+              "Je peux expliquer quand mmap est préféré à brk"
+            ]
+          },
+          "hasProject": true,
+          "project": {
+            "slug": "custom-malloc",
+            "title": "Implémentez votre propre malloc",
+            "description": "Créez une implémentation simplifiée de malloc/free utilisant sbrk pour comprendre les mécanismes d'allocation.",
+            "requirements": [
+              "Implémenter my_malloc(size_t size) qui alloue de la mémoire",
+              "Implémenter my_free(void *ptr) qui libère la mémoire",
+              "Utiliser sbrk() pour obtenir de la mémoire du système",
+              "Gérer une liste de blocs libres pour la réutilisation",
+              "Fusionner les blocs adjacents lors de la libération"
+            ],
+            "starterCode": "#include <stdio.h>\n#include <unistd.h>\n#include <string.h>\n\n// Structure d'en-tête de bloc\ntypedef struct block_header {\n    size_t size;\n    int is_free;\n    struct block_header *next;\n} block_header_t;\n\n#define HEADER_SIZE sizeof(block_header_t)\n\nstatic block_header_t *head = NULL;\n\nvoid *my_malloc(size_t size) {\n    // TODO: Implémenter l'allocation\n    // 1. Chercher un bloc libre de taille suffisante\n    // 2. Si trouvé, le marquer comme utilisé\n    // 3. Sinon, utiliser sbrk() pour obtenir plus de mémoire\n    return NULL;\n}\n\nvoid my_free(void *ptr) {\n    // TODO: Implémenter la libération\n    // 1. Retrouver l'en-tête du bloc\n    // 2. Marquer le bloc comme libre\n    // 3. Fusionner avec les blocs adjacents si possible\n}\n\nint main() {\n    // Tests\n    int *arr = (int*)my_malloc(10 * sizeof(int));\n    if (arr) {\n        for (int i = 0; i < 10; i++) arr[i] = i;\n        printf(\"Allocation réussie!\\n\");\n        my_free(arr);\n    }\n    return 0;\n}",
+            "hints": [
+              "Commencez par implémenter une version simple sans réutilisation des blocs",
+              "L'en-tête doit être placé juste avant la zone de données retournée",
+              "Pour retrouver l'en-tête depuis un pointeur, soustrayez HEADER_SIZE",
+              "La fusion des blocs adjacents améliore l'utilisation mémoire"
+            ],
+            "difficulty": 4,
+            "pointsReward": 300,
+            "timeLimitMinutes": 90,
+            "testCases": [
+              {"name": "Allocation simple", "type": "output"},
+              {"name": "Free et réallocation", "type": "output"},
+              {"name": "Allocations multiples", "type": "output"}
+            ]
+          }
+        },
+        {
+          "slug": "memory-leaks",
+          "title": "Détection et prévention des fuites mémoire",
+          "description": "Apprenez à identifier, déboguer et prévenir les fuites mémoire avec Valgrind et les bonnes pratiques.",
+          "difficulty": 2,
+          "estimatedHours": 4,
+          "pointsReward": 100,
+          "content": {
+            "objectives": [
+              "Utiliser Valgrind pour détecter les fuites mémoire",
+              "Comprendre les différents types de fuites",
+              "Appliquer les patterns de gestion mémoire sécurisée",
+              "Déboguer les erreurs d'accès mémoire"
+            ],
+            "theory": "## Les fuites mémoire\n\nUne fuite mémoire se produit quand de la mémoire allouée n'est jamais libérée. Cela peut causer :\n- Épuisement de la mémoire disponible\n- Dégradation des performances\n- Crash de l'application\n\n### Types de fuites\n1. **Definitely lost** : Mémoire inaccessible, jamais libérée\n2. **Indirectly lost** : Mémoire accessible uniquement via un bloc perdu\n3. **Possibly lost** : Pointeur modifié, mémoire peut-être accessible\n4. **Still reachable** : Mémoire accessible à la fin du programme\n\n### Valgrind\nOutil puissant pour détecter les problèmes mémoire :\n```bash\nvalgrind --leak-check=full ./mon_programme\n```",
+            "examples": [
+              {
+                "title": "Exemple de fuite mémoire",
+                "code": "#include <stdlib.h>\n\nvoid fuite_simple() {\n    int *ptr = malloc(100 * sizeof(int));\n    // Oubli de free(ptr) -> fuite!\n}\n\nvoid fuite_ecrasement() {\n    int *ptr = malloc(50 * sizeof(int));\n    ptr = malloc(100 * sizeof(int));  // Première allocation perdue!\n    free(ptr);  // Seule la deuxième est libérée\n}\n\nint main() {\n    fuite_simple();\n    fuite_ecrasement();\n    return 0;\n}",
+                "explanation": "Ce code illustre deux types courants de fuites mémoire."
+              }
+            ],
+            "checkpoints": [
+              "Je sais utiliser Valgrind pour analyser mon programme",
+              "Je comprends les différents types de fuites rapportées",
+              "J'applique systématiquement le pattern allocation/libération",
+              "Je sais déboguer les erreurs 'invalid read/write'"
+            ]
+          }
+        },
+        {
+          "slug": "mmap-advanced",
+          "title": "Mapping mémoire avec mmap",
+          "description": "Maîtrisez mmap pour le mapping de fichiers, la mémoire partagée et les allocations de grande taille.",
+          "difficulty": 3,
+          "estimatedHours": 5,
+          "pointsReward": 150,
+          "content": {
+            "objectives": [
+              "Comprendre les différents modes de mmap",
+              "Mapper des fichiers en mémoire",
+              "Créer de la mémoire partagée entre processus",
+              "Optimiser les performances avec mmap"
+            ],
+            "theory": "## mmap : Memory Mapping\n\n`mmap()` permet de mapper des fichiers ou de la mémoire anonyme dans l'espace d'adressage d'un processus.\n\n### Syntaxe\n```c\nvoid *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);\n```\n\n### Flags importants\n- `MAP_PRIVATE` : Modifications privées (copy-on-write)\n- `MAP_SHARED` : Modifications partagées avec autres processus\n- `MAP_ANONYMOUS` : Pas de fichier associé\n\n### Avantages\n- Accès direct aux fichiers sans read/write\n- Partage de mémoire entre processus\n- Lazy loading (chargement à la demande)",
+            "examples": [
+              {
+                "title": "Mapper un fichier en mémoire",
+                "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <fcntl.h>\n#include <sys/mman.h>\n#include <sys/stat.h>\n#include <unistd.h>\n\nint main() {\n    int fd = open(\"test.txt\", O_RDONLY);\n    if (fd == -1) { perror(\"open\"); return 1; }\n    \n    struct stat sb;\n    fstat(fd, &sb);\n    \n    char *mapped = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);\n    if (mapped == MAP_FAILED) { perror(\"mmap\"); return 1; }\n    \n    // Accès direct au contenu du fichier\n    printf(\"Contenu: %.*s\\n\", (int)sb.st_size, mapped);\n    \n    munmap(mapped, sb.st_size);\n    close(fd);\n    return 0;\n}",
+                "explanation": "Ce code mappe un fichier en mémoire pour un accès direct sans appels read()."
+              }
+            ],
+            "checkpoints": [
+              "Je sais mapper un fichier en mémoire",
+              "Je comprends la différence entre MAP_PRIVATE et MAP_SHARED",
+              "Je peux créer de la mémoire partagée entre processus",
+              "Je sais quand utiliser mmap vs malloc"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "slug": "pointers-lowlevel",
+      "title": "Pointeurs & Bas Niveau",
+      "description": "Maîtrisez les pointeurs avancés, la manipulation de bits, l'inline assembly et les techniques de bas niveau.",
+      "icon": "🎯",
+      "color": "#ef4444",
+      "estimatedHours": 35,
+      "position": 2,
+      "topics": [
+        {
+          "slug": "pointer-arithmetic",
+          "title": "Arithmétique des pointeurs avancée",
+          "description": "Explorez les subtilités de l'arithmétique des pointeurs et les pièges à éviter.",
+          "difficulty": 2,
+          "estimatedHours": 4,
+          "pointsReward": 100,
+          "content": {
+            "objectives": [
+              "Maîtriser l'arithmétique des pointeurs",
+              "Comprendre l'alignement mémoire",
+              "Éviter les comportements indéfinis",
+              "Optimiser les parcours de tableaux"
+            ],
+            "theory": "## Arithmétique des pointeurs\n\nL'arithmétique des pointeurs en C est basée sur la taille du type pointé.\n\n### Règles fondamentales\n```c\nint arr[10];\nint *p = arr;\np++;  // Avance de sizeof(int) octets, pas de 1!\n```\n\n### Soustraction de pointeurs\n```c\nint *p1 = &arr[5];\nint *p2 = &arr[2];\nptrdiff_t diff = p1 - p2;  // = 3 (éléments, pas octets)\n```\n\n### Alignement\nLes types ont des contraintes d'alignement. Un `int` doit souvent être aligné sur 4 octets.",
+            "examples": [
+              {
+                "title": "Parcours optimisé avec pointeurs",
+                "code": "#include <stdio.h>\n\nvoid print_array_index(int *arr, size_t n) {\n    for (size_t i = 0; i < n; i++) {\n        printf(\"%d \", arr[i]);  // Calcul d'offset à chaque itération\n    }\n}\n\nvoid print_array_pointer(int *arr, size_t n) {\n    int *end = arr + n;\n    for (int *p = arr; p < end; p++) {\n        printf(\"%d \", *p);  // Simple incrémentation\n    }\n}\n\nint main() {\n    int arr[] = {1, 2, 3, 4, 5};\n    print_array_pointer(arr, 5);\n    return 0;\n}",
+                "explanation": "Le parcours par pointeur peut être plus efficace car il évite le calcul d'offset répété."
+              }
+            ],
+            "checkpoints": [
+              "Je comprends que p++ avance de sizeof(*p) octets",
+              "Je sais calculer la différence entre deux pointeurs",
+              "Je comprends les contraintes d'alignement",
+              "Je peux optimiser les parcours de tableaux"
+            ]
+          }
+        },
+        {
+          "slug": "function-pointers",
+          "title": "Pointeurs de fonctions et callbacks",
+          "description": "Utilisez les pointeurs de fonctions pour créer des architectures flexibles et des callbacks.",
+          "difficulty": 3,
+          "estimatedHours": 5,
+          "pointsReward": 150,
+          "content": {
+            "objectives": [
+              "Déclarer et utiliser des pointeurs de fonctions",
+              "Implémenter des callbacks",
+              "Créer des tables de dispatch",
+              "Comprendre les conventions d'appel"
+            ],
+            "theory": "## Pointeurs de fonctions\n\nUn pointeur de fonction stocke l'adresse d'une fonction, permettant de l'appeler indirectement.\n\n### Syntaxe\n```c\n// Déclaration\nint (*func_ptr)(int, int);\n\n// Affectation\nfunc_ptr = &ma_fonction;  // ou simplement: func_ptr = ma_fonction;\n\n// Appel\nint result = func_ptr(5, 3);  // ou (*func_ptr)(5, 3);\n```\n\n### Typedef pour simplifier\n```c\ntypedef int (*operation_t)(int, int);\noperation_t op = addition;\n```",
+            "examples": [
+              {
+                "title": "Table de dispatch",
+                "code": "#include <stdio.h>\n\nint add(int a, int b) { return a + b; }\nint sub(int a, int b) { return a - b; }\nint mul(int a, int b) { return a * b; }\nint divide(int a, int b) { return b ? a / b : 0; }\n\ntypedef int (*operation_t)(int, int);\n\nint main() {\n    operation_t operations[] = {add, sub, mul, divide};\n    const char *names[] = {\"+\", \"-\", \"*\", \"/\"};\n    \n    int a = 10, b = 3;\n    for (int i = 0; i < 4; i++) {\n        printf(\"%d %s %d = %d\\n\", a, names[i], b, operations[i](a, b));\n    }\n    return 0;\n}",
+                "explanation": "Une table de dispatch permet de sélectionner dynamiquement la fonction à appeler."
+              }
+            ],
+            "checkpoints": [
+              "Je sais déclarer un pointeur de fonction",
+              "Je peux implémenter un système de callbacks",
+              "Je comprends l'utilité des tables de dispatch",
+              "Je sais utiliser typedef pour simplifier les déclarations"
+            ]
+          }
+        },
+        {
+          "slug": "bit-manipulation",
+          "title": "Manipulation de bits avancée",
+          "description": "Maîtrisez les opérations bit à bit pour l'optimisation et la programmation système.",
+          "difficulty": 3,
+          "estimatedHours": 5,
+          "pointsReward": 150,
+          "content": {
+            "objectives": [
+              "Maîtriser les opérateurs bit à bit",
+              "Implémenter des flags et masques",
+              "Optimiser avec les opérations binaires",
+              "Comprendre l'endianness"
+            ],
+            "theory": "## Opérations bit à bit\n\n### Opérateurs\n- `&` : ET logique\n- `|` : OU logique\n- `^` : XOR (OU exclusif)\n- `~` : Complément (NOT)\n- `<<` : Décalage à gauche\n- `>>` : Décalage à droite\n\n### Techniques courantes\n```c\n// Tester un bit\nif (flags & (1 << n)) { /* bit n est à 1 */ }\n\n// Mettre un bit à 1\nflags |= (1 << n);\n\n// Mettre un bit à 0\nflags &= ~(1 << n);\n\n// Inverser un bit\nflags ^= (1 << n);\n```",
+            "examples": [
+              {
+                "title": "Système de permissions avec flags",
+                "code": "#include <stdio.h>\n\n#define PERM_READ    (1 << 0)  // 0001\n#define PERM_WRITE   (1 << 1)  // 0010\n#define PERM_EXECUTE (1 << 2)  // 0100\n#define PERM_DELETE  (1 << 3)  // 1000\n\nvoid print_permissions(unsigned int perms) {\n    printf(\"Permissions: \");\n    if (perms & PERM_READ)    printf(\"R\");\n    if (perms & PERM_WRITE)   printf(\"W\");\n    if (perms & PERM_EXECUTE) printf(\"X\");\n    if (perms & PERM_DELETE)  printf(\"D\");\n    printf(\"\\n\");\n}\n\nint main() {\n    unsigned int user_perms = PERM_READ | PERM_WRITE;\n    print_permissions(user_perms);  // RW\n    \n    user_perms |= PERM_EXECUTE;  // Ajouter exécution\n    print_permissions(user_perms);  // RWX\n    \n    user_perms &= ~PERM_WRITE;  // Retirer écriture\n    print_permissions(user_perms);  // RX\n    \n    return 0;\n}",
+                "explanation": "Les flags binaires permettent de stocker plusieurs booléens dans un seul entier."
+              }
+            ],
+            "checkpoints": [
+              "Je maîtrise les 6 opérateurs bit à bit",
+              "Je sais implémenter un système de flags",
+              "Je peux extraire/modifier des bits spécifiques",
+              "Je comprends big-endian vs little-endian"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "slug": "network-sockets",
+      "title": "Sockets Réseau",
+      "description": "Programmez des applications réseau performantes : sockets TCP/UDP, serveurs multi-clients, epoll et protocoles.",
+      "icon": "🌐",
+      "color": "#3b82f6",
+      "estimatedHours": 40,
+      "position": 3,
+      "topics": [
+        {
+          "slug": "socket-basics",
+          "title": "Fondamentaux des sockets",
+          "description": "Comprenez l'API sockets BSD et créez vos premières connexions réseau.",
+          "difficulty": 2,
+          "estimatedHours": 5,
+          "pointsReward": 100,
+          "content": {
+            "objectives": [
+              "Comprendre le modèle client-serveur",
+              "Créer des sockets TCP et UDP",
+              "Implémenter un serveur simple",
+              "Gérer les erreurs réseau"
+            ],
+            "theory": "## L'API Sockets\n\nLes sockets sont l'interface standard pour la communication réseau.\n\n### Création d'un socket\n```c\nint sockfd = socket(AF_INET, SOCK_STREAM, 0);  // TCP\nint sockfd = socket(AF_INET, SOCK_DGRAM, 0);   // UDP\n```\n\n### Flux serveur TCP\n1. `socket()` - Créer le socket\n2. `bind()` - Associer à une adresse/port\n3. `listen()` - Mettre en écoute\n4. `accept()` - Accepter une connexion\n5. `recv()/send()` - Échanger des données\n6. `close()` - Fermer\n\n### Flux client TCP\n1. `socket()` - Créer le socket\n2. `connect()` - Se connecter au serveur\n3. `send()/recv()` - Échanger des données\n4. `close()` - Fermer",
+            "examples": [
+              {
+                "title": "Serveur TCP simple",
+                "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <unistd.h>\n#include <sys/socket.h>\n#include <netinet/in.h>\n\n#define PORT 8080\n#define BUFFER_SIZE 1024\n\nint main() {\n    int server_fd, client_fd;\n    struct sockaddr_in address;\n    char buffer[BUFFER_SIZE] = {0};\n    \n    // Créer le socket\n    server_fd = socket(AF_INET, SOCK_STREAM, 0);\n    \n    // Configurer l'adresse\n    address.sin_family = AF_INET;\n    address.sin_addr.s_addr = INADDR_ANY;\n    address.sin_port = htons(PORT);\n    \n    // Bind et listen\n    bind(server_fd, (struct sockaddr*)&address, sizeof(address));\n    listen(server_fd, 3);\n    \n    printf(\"Serveur en écoute sur le port %d...\\n\", PORT);\n    \n    // Accepter une connexion\n    socklen_t addrlen = sizeof(address);\n    client_fd = accept(server_fd, (struct sockaddr*)&address, &addrlen);\n    \n    // Lire et répondre\n    read(client_fd, buffer, BUFFER_SIZE);\n    printf(\"Reçu: %s\\n\", buffer);\n    send(client_fd, \"Hello from server\", 17, 0);\n    \n    close(client_fd);\n    close(server_fd);\n    return 0;\n}",
+                "explanation": "Un serveur TCP basique qui accepte une connexion et échange un message."
+              }
+            ],
+            "checkpoints": [
+              "Je comprends la différence entre TCP et UDP",
+              "Je sais créer un socket et le configurer",
+              "Je peux implémenter un serveur simple",
+              "Je gère correctement les erreurs réseau"
+            ]
+          }
+        },
+        {
+          "slug": "epoll-multiplexing",
+          "title": "Multiplexage I/O avec epoll",
+          "description": "Créez des serveurs haute performance capables de gérer des milliers de connexions simultanées.",
+          "difficulty": 4,
+          "estimatedHours": 8,
+          "pointsReward": 200,
+          "content": {
+            "objectives": [
+              "Comprendre le problème du C10K",
+              "Maîtriser l'API epoll",
+              "Implémenter un serveur event-driven",
+              "Optimiser les performances réseau"
+            ],
+            "theory": "## epoll : I/O Multiplexing efficace\n\nepoll est l'interface Linux pour le multiplexage I/O scalable.\n\n### Pourquoi epoll ?\n- `select()` : O(n) - limité à 1024 fds\n- `poll()` : O(n) - pas de limite mais lent\n- `epoll()` : O(1) - scalable à des millions de connexions\n\n### API\n```c\n// Créer l'instance epoll\nint epfd = epoll_create1(0);\n\n// Ajouter un fd à surveiller\nstruct epoll_event ev;\nev.events = EPOLLIN;\nev.data.fd = sockfd;\nepoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev);\n\n// Attendre des événements\nstruct epoll_event events[MAX_EVENTS];\nint n = epoll_wait(epfd, events, MAX_EVENTS, timeout);\n```",
+            "examples": [
+              {
+                "title": "Serveur epoll multi-clients",
+                "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <unistd.h>\n#include <sys/socket.h>\n#include <sys/epoll.h>\n#include <netinet/in.h>\n#include <fcntl.h>\n\n#define MAX_EVENTS 64\n#define PORT 8080\n\nint set_nonblocking(int fd) {\n    int flags = fcntl(fd, F_GETFL, 0);\n    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);\n}\n\nint main() {\n    int server_fd = socket(AF_INET, SOCK_STREAM, 0);\n    set_nonblocking(server_fd);\n    \n    struct sockaddr_in addr = {\n        .sin_family = AF_INET,\n        .sin_addr.s_addr = INADDR_ANY,\n        .sin_port = htons(PORT)\n    };\n    \n    bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));\n    listen(server_fd, SOMAXCONN);\n    \n    int epfd = epoll_create1(0);\n    struct epoll_event ev, events[MAX_EVENTS];\n    \n    ev.events = EPOLLIN;\n    ev.data.fd = server_fd;\n    epoll_ctl(epfd, EPOLL_CTL_ADD, server_fd, &ev);\n    \n    printf(\"Serveur epoll sur le port %d\\n\", PORT);\n    \n    while (1) {\n        int n = epoll_wait(epfd, events, MAX_EVENTS, -1);\n        for (int i = 0; i < n; i++) {\n            if (events[i].data.fd == server_fd) {\n                // Nouvelle connexion\n                int client = accept(server_fd, NULL, NULL);\n                set_nonblocking(client);\n                ev.events = EPOLLIN | EPOLLET;\n                ev.data.fd = client;\n                epoll_ctl(epfd, EPOLL_CTL_ADD, client, &ev);\n            } else {\n                // Données client\n                char buf[1024];\n                int len = read(events[i].data.fd, buf, sizeof(buf));\n                if (len <= 0) {\n                    close(events[i].data.fd);\n                } else {\n                    write(events[i].data.fd, buf, len);  // Echo\n                }\n            }\n        }\n    }\n    return 0;\n}",
+                "explanation": "Un serveur echo utilisant epoll pour gérer efficacement plusieurs clients."
+              }
+            ],
+            "checkpoints": [
+              "Je comprends les limites de select/poll",
+              "Je maîtrise l'API epoll (create, ctl, wait)",
+              "Je sais configurer les modes edge/level triggered",
+              "Je peux implémenter un serveur non-bloquant"
+            ]
+          },
+          "hasProject": true,
+          "project": {
+            "slug": "http-server",
+            "title": "Mini serveur HTTP",
+            "description": "Implémentez un serveur HTTP basique capable de servir des fichiers statiques.",
+            "requirements": [
+              "Parser les requêtes HTTP GET",
+              "Servir des fichiers depuis un répertoire",
+              "Gérer les codes de statut (200, 404, 500)",
+              "Supporter plusieurs connexions simultanées",
+              "Implémenter les headers Content-Type et Content-Length"
+            ],
+            "starterCode": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <unistd.h>\n#include <sys/socket.h>\n#include <netinet/in.h>\n\n#define PORT 8080\n#define BUFFER_SIZE 4096\n\nvoid handle_request(int client_fd) {\n    char buffer[BUFFER_SIZE];\n    read(client_fd, buffer, BUFFER_SIZE);\n    \n    // TODO: Parser la requête HTTP\n    // TODO: Extraire le chemin du fichier\n    // TODO: Lire le fichier et envoyer la réponse\n    \n    const char *response = \"HTTP/1.1 200 OK\\r\\nContent-Type: text/html\\r\\n\\r\\n<h1>Hello!</h1>\";\n    write(client_fd, response, strlen(response));\n}\n\nint main() {\n    // TODO: Implémenter le serveur\n    return 0;\n}",
+            "hints": [
+              "Une requête HTTP GET ressemble à: GET /path HTTP/1.1",
+              "Utilisez strtok() pour parser les lignes de la requête",
+              "N'oubliez pas les headers \\r\\n\\r\\n entre les headers et le body",
+              "Déterminez le Content-Type selon l'extension du fichier"
+            ],
+            "difficulty": 4,
+            "pointsReward": 350,
+            "timeLimitMinutes": 120,
+            "testCases": [
+              {"name": "Requête GET basique", "type": "output"},
+              {"name": "Fichier HTML", "type": "output"},
+              {"name": "Erreur 404", "type": "output"},
+              {"name": "Headers corrects", "type": "output"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "slug": "threads-concurrency",
+      "title": "Threads & Concurrence",
+      "description": "Maîtrisez la programmation multi-threadée : POSIX threads, synchronisation, structures lock-free et patterns de concurrence.",
+      "icon": "⚡",
+      "color": "#eab308",
+      "estimatedHours": 45,
+      "position": 4,
+      "topics": [
+        {
+          "slug": "pthreads-basics",
+          "title": "Introduction aux POSIX Threads",
+          "description": "Créez et gérez des threads avec l'API pthreads.",
+          "difficulty": 2,
+          "estimatedHours": 5,
+          "pointsReward": 100,
+          "content": {
+            "objectives": [
+              "Créer et terminer des threads",
+              "Passer des arguments aux threads",
+              "Récupérer les valeurs de retour",
+              "Comprendre le cycle de vie d'un thread"
+            ],
+            "theory": "## POSIX Threads (pthreads)\n\nLes threads permettent l'exécution parallèle au sein d'un même processus.\n\n### Création\n```c\npthread_t thread;\nint ret = pthread_create(&thread, NULL, thread_function, arg);\n```\n\n### Attente\n```c\nvoid *result;\npthread_join(thread, &result);  // Attend la fin du thread\n```\n\n### Fonction thread\n```c\nvoid *thread_function(void *arg) {\n    // Code du thread\n    return result;  // ou pthread_exit(result);\n}\n```\n\n### Compilation\n```bash\ngcc -pthread program.c -o program\n```",
+            "examples": [
+              {
+                "title": "Création de threads",
+                "code": "#include <stdio.h>\n#include <pthread.h>\n#include <unistd.h>\n\nvoid *worker(void *arg) {\n    int id = *(int*)arg;\n    printf(\"Thread %d démarré\\n\", id);\n    sleep(1);\n    printf(\"Thread %d terminé\\n\", id);\n    return NULL;\n}\n\nint main() {\n    pthread_t threads[4];\n    int ids[4];\n    \n    for (int i = 0; i < 4; i++) {\n        ids[i] = i;\n        pthread_create(&threads[i], NULL, worker, &ids[i]);\n    }\n    \n    for (int i = 0; i < 4; i++) {\n        pthread_join(threads[i], NULL);\n    }\n    \n    printf(\"Tous les threads terminés\\n\");\n    return 0;\n}",
+                "explanation": "Création de 4 threads qui s'exécutent en parallèle."
+              }
+            ],
+            "checkpoints": [
+              "Je sais créer un thread avec pthread_create",
+              "Je comprends pthread_join et son importance",
+              "Je peux passer des arguments aux threads",
+              "Je compile correctement avec -pthread"
+            ]
+          }
+        },
+        {
+          "slug": "mutex-sync",
+          "title": "Synchronisation avec Mutex",
+          "description": "Protégez les ressources partagées avec les mutex et évitez les race conditions.",
+          "difficulty": 3,
+          "estimatedHours": 6,
+          "pointsReward": 150,
+          "content": {
+            "objectives": [
+              "Comprendre les race conditions",
+              "Utiliser les mutex pour la synchronisation",
+              "Éviter les deadlocks",
+              "Appliquer les bonnes pratiques"
+            ],
+            "theory": "## Race Conditions et Mutex\n\n### Race Condition\nSe produit quand plusieurs threads accèdent à une ressource partagée sans synchronisation.\n\n### Mutex (Mutual Exclusion)\n```c\npthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;\n\npthread_mutex_lock(&mutex);    // Verrouiller\n// Section critique\npthread_mutex_unlock(&mutex);  // Déverrouiller\n```\n\n### Deadlock\nSe produit quand deux threads s'attendent mutuellement :\n- Thread A verrouille mutex1, attend mutex2\n- Thread B verrouille mutex2, attend mutex1\n\n### Prévention\n- Toujours verrouiller dans le même ordre\n- Utiliser trylock avec timeout\n- Minimiser les sections critiques",
+            "examples": [
+              {
+                "title": "Compteur thread-safe",
+                "code": "#include <stdio.h>\n#include <pthread.h>\n\nint counter = 0;\npthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;\n\nvoid *increment(void *arg) {\n    for (int i = 0; i < 100000; i++) {\n        pthread_mutex_lock(&mutex);\n        counter++;\n        pthread_mutex_unlock(&mutex);\n    }\n    return NULL;\n}\n\nint main() {\n    pthread_t t1, t2;\n    \n    pthread_create(&t1, NULL, increment, NULL);\n    pthread_create(&t2, NULL, increment, NULL);\n    \n    pthread_join(t1, NULL);\n    pthread_join(t2, NULL);\n    \n    printf(\"Compteur final: %d (attendu: 200000)\\n\", counter);\n    return 0;\n}",
+                "explanation": "Sans le mutex, le compteur aurait une valeur incorrecte due aux race conditions."
+              }
+            ],
+            "checkpoints": [
+              "Je comprends ce qu'est une race condition",
+              "Je sais utiliser pthread_mutex_lock/unlock",
+              "Je peux identifier les risques de deadlock",
+              "Je minimise la taille des sections critiques"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "slug": "system-programming",
+      "title": "Programmation Système",
+      "description": "Plongez dans la programmation système Linux : processus, signaux, IPC, et interaction avec le kernel.",
+      "icon": "🐧",
+      "color": "#6366f1",
+      "estimatedHours": 50,
+      "position": 5,
+      "topics": [
+        {
+          "slug": "process-management",
+          "title": "Gestion des processus",
+          "description": "Créez et gérez des processus avec fork, exec et wait.",
+          "difficulty": 2,
+          "estimatedHours": 5,
+          "pointsReward": 100,
+          "content": {
+            "objectives": [
+              "Comprendre fork() et la duplication de processus",
+              "Utiliser la famille exec() pour exécuter des programmes",
+              "Gérer les processus enfants avec wait()",
+              "Comprendre les processus zombies et orphelins"
+            ],
+            "theory": "## Gestion des processus\n\n### fork()\nCrée une copie du processus courant.\n```c\npid_t pid = fork();\nif (pid == 0) {\n    // Code enfant\n} else if (pid > 0) {\n    // Code parent, pid = PID de l'enfant\n} else {\n    // Erreur\n}\n```\n\n### exec()\nRemplace le processus courant par un nouveau programme.\n```c\nexecl(\"/bin/ls\", \"ls\", \"-l\", NULL);\n// Ne retourne jamais si succès\n```\n\n### wait()\nAttend la terminaison d'un processus enfant.\n```c\nint status;\npid_t child = wait(&status);\nif (WIFEXITED(status)) {\n    int exit_code = WEXITSTATUS(status);\n}\n```",
+            "examples": [
+              {
+                "title": "Fork et exec",
+                "code": "#include <stdio.h>\n#include <stdlib.h>\n#include <unistd.h>\n#include <sys/wait.h>\n\nint main() {\n    pid_t pid = fork();\n    \n    if (pid == 0) {\n        // Enfant : exécute ls\n        printf(\"Enfant (PID %d) exécute ls\\n\", getpid());\n        execlp(\"ls\", \"ls\", \"-la\", NULL);\n        perror(\"exec\");  // Atteint seulement si exec échoue\n        exit(1);\n    } else if (pid > 0) {\n        // Parent : attend l'enfant\n        printf(\"Parent (PID %d) attend l'enfant %d\\n\", getpid(), pid);\n        int status;\n        waitpid(pid, &status, 0);\n        printf(\"Enfant terminé avec status %d\\n\", WEXITSTATUS(status));\n    } else {\n        perror(\"fork\");\n        return 1;\n    }\n    \n    return 0;\n}",
+                "explanation": "Le processus enfant est remplacé par 'ls', le parent attend sa terminaison."
+              }
+            ],
+            "checkpoints": [
+              "Je comprends le fonctionnement de fork()",
+              "Je sais utiliser les différentes variantes d'exec()",
+              "Je gère correctement les processus enfants",
+              "Je comprends les processus zombies et comment les éviter"
+            ]
+          }
+        },
+        {
+          "slug": "signals",
+          "title": "Gestion des signaux",
+          "description": "Interceptez et gérez les signaux Unix pour un contrôle fin de vos programmes.",
+          "difficulty": 3,
+          "estimatedHours": 5,
+          "pointsReward": 150,
+          "content": {
+            "objectives": [
+              "Comprendre les signaux Unix courants",
+              "Installer des handlers de signaux",
+              "Utiliser sigaction pour une gestion robuste",
+              "Gérer les signaux de manière thread-safe"
+            ],
+            "theory": "## Les signaux Unix\n\nLes signaux sont des interruptions logicielles envoyées aux processus.\n\n### Signaux courants\n- `SIGINT` (2) : Ctrl+C\n- `SIGTERM` (15) : Demande de terminaison\n- `SIGKILL` (9) : Terminaison forcée (non interceptable)\n- `SIGSEGV` (11) : Violation de segmentation\n- `SIGCHLD` (17) : Enfant terminé\n\n### sigaction (recommandé)\n```c\nstruct sigaction sa;\nsa.sa_handler = handler_function;\nsigemptyset(&sa.sa_mask);\nsa.sa_flags = 0;\nsigaction(SIGINT, &sa, NULL);\n```",
+            "examples": [
+              {
+                "title": "Handler de signal",
+                "code": "#include <stdio.h>\n#include <signal.h>\n#include <unistd.h>\n\nvolatile sig_atomic_t running = 1;\n\nvoid sigint_handler(int sig) {\n    printf(\"\\nSignal %d reçu, arrêt en cours...\\n\", sig);\n    running = 0;\n}\n\nint main() {\n    struct sigaction sa;\n    sa.sa_handler = sigint_handler;\n    sigemptyset(&sa.sa_mask);\n    sa.sa_flags = 0;\n    sigaction(SIGINT, &sa, NULL);\n    \n    printf(\"Programme en cours (Ctrl+C pour arrêter)\\n\");\n    \n    while (running) {\n        printf(\".\");\n        fflush(stdout);\n        sleep(1);\n    }\n    \n    printf(\"Programme terminé proprement\\n\");\n    return 0;\n}",
+                "explanation": "Le handler intercepte Ctrl+C pour une terminaison propre."
+              }
+            ],
+            "checkpoints": [
+              "Je connais les signaux Unix courants",
+              "Je sais installer un handler avec sigaction",
+              "J'utilise volatile sig_atomic_t correctement",
+              "Je comprends les limitations des handlers de signaux"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "slug": "filesystem-io",
+      "title": "Système de Fichiers & I/O",
+      "description": "Maîtrisez les opérations fichiers avancées : I/O bas niveau, buffers, fichiers mappés et systèmes de fichiers.",
+      "icon": "📁",
+      "color": "#22c55e",
+      "estimatedHours": 30,
+      "position": 6,
+      "topics": [
+        {
+          "slug": "file-descriptors",
+          "title": "Descripteurs de fichiers",
+          "description": "Comprenez les descripteurs de fichiers et les opérations I/O bas niveau.",
+          "difficulty": 2,
+          "estimatedHours": 4,
+          "pointsReward": 100,
+          "content": {
+            "objectives": [
+              "Comprendre les descripteurs de fichiers",
+              "Utiliser open, read, write, close",
+              "Manipuler la position avec lseek",
+              "Gérer les erreurs I/O"
+            ],
+            "theory": "## Descripteurs de fichiers\n\nUn descripteur de fichier (fd) est un entier représentant un fichier ouvert.\n\n### Descripteurs standard\n- 0 : stdin\n- 1 : stdout\n- 2 : stderr\n\n### Opérations de base\n```c\n// Ouvrir\nint fd = open(\"file.txt\", O_RDWR | O_CREAT, 0644);\n\n// Lire\nchar buf[100];\nssize_t n = read(fd, buf, sizeof(buf));\n\n// Écrire\nwrite(fd, \"Hello\", 5);\n\n// Positionner\nlseek(fd, 0, SEEK_SET);  // Début\nlseek(fd, 0, SEEK_END);  // Fin\n\n// Fermer\nclose(fd);\n```",
+            "examples": [
+              {
+                "title": "Copie de fichier bas niveau",
+                "code": "#include <stdio.h>\n#include <fcntl.h>\n#include <unistd.h>\n\n#define BUF_SIZE 4096\n\nint main(int argc, char *argv[]) {\n    if (argc != 3) {\n        fprintf(stderr, \"Usage: %s source dest\\n\", argv[0]);\n        return 1;\n    }\n    \n    int src = open(argv[1], O_RDONLY);\n    if (src == -1) { perror(\"open src\"); return 1; }\n    \n    int dst = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);\n    if (dst == -1) { perror(\"open dst\"); close(src); return 1; }\n    \n    char buf[BUF_SIZE];\n    ssize_t n;\n    \n    while ((n = read(src, buf, BUF_SIZE)) > 0) {\n        if (write(dst, buf, n) != n) {\n            perror(\"write\");\n            break;\n        }\n    }\n    \n    close(src);\n    close(dst);\n    return n < 0 ? 1 : 0;\n}",
+                "explanation": "Copie efficace de fichier utilisant un buffer de 4KB."
+              }
+            ],
+            "checkpoints": [
+              "Je comprends ce qu'est un descripteur de fichier",
+              "Je maîtrise open, read, write, close",
+              "Je sais utiliser lseek pour naviguer",
+              "Je gère correctement les erreurs I/O"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
