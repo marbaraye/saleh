@@ -8,7 +8,8 @@
     "dev": "nodemon src/index.js",
     "db:init": "node database/init.js",
     "db:seed": "node database/seed.js",
-    "test": "jest"
+    "test": "jest",
+    "build": "echo 'No build step required for server'"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
